@@ -1,38 +1,73 @@
 import React, { useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { 
+  DndContext, 
+  closestCenter, 
+  TouchSensor, 
+  MouseSensor, 
+  useSensor, 
+  useSensors 
+} from '@dnd-kit/core';
+import { 
+  arrayMove, 
+  SortableContext, 
+  verticalListSortingStrategy, 
+  useSortable 
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Drag & Drop Item UI
+// --- Sortable Item UI ---
 const SortableItem = ({ file, onRemove }: any) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: file.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: file.id });
+  
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    backgroundColor: 'white',
+    backgroundColor: isDragging ? '#eefaff' : 'white',
     padding: '12px',
     marginBottom: '8px',
     borderRadius: '8px',
-    border: '1px solid #0070c0',
+    border: isDragging ? '2px solid #92d050' : '1px solid #0070c0',
     display: 'flex',
     alignItems: 'center',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+    boxShadow: isDragging ? '0 8px 15px rgba(0,0,0,0.2)' : '0 2px 5px rgba(0,0,0,0.1)',
+    zIndex: isDragging ? 10 : 1,
+    touchAction: 'none' // Critical for mobile drag
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      <div {...listeners} style={{ cursor: 'grab', marginRight: '15px', color: '#0070c0' }}>☰</div>
-      <div style={{ flex: 1, fontSize: '13px', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</div>
-      <button onClick={() => onRemove(file.id)} style={{ background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer' }}>×</button>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <div style={{ marginRight: '15px', color: '#0070c0', fontSize: '18px' }}>☰</div>
+      <div style={{ flex: 1, fontSize: '13px', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {file.name}
+      </div>
+      <button 
+        onPointerDown={(e) => e.stopPropagation()} // Prevents drag when trying to delete
+        onClick={() => onRemove(file.id)} 
+        style={{ background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}
+      >
+        ×
+      </button>
     </div>
   );
 };
 
+// --- Main App ---
 export default function MergePDF() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const sensors = useSensors(useSensor(PointerSensor));
+
+  // CONFIGURE SENSORS FOR MOBILE LONG PRESS
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor, {
+      // Press and hold for 250ms to start dragging on mobile
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
 
   const handleFileChange = (e: any) => {
     const newFiles = Array.from(e.target.files).map((file: any) => ({
@@ -69,14 +104,14 @@ export default function MergePDF() {
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = "Merged_Document.pdf";
+      link.download = `Merged_UniqDesigns_${Date.now()}.pdf`;
       link.click();
     } catch (err) { alert("Error merging files"); }
     setLoading(false);
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f9f9f9' }}>
+    <div style={{ maxWidth: '400px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f9f9f9', userSelect: 'none' }}>
       <header style={{ backgroundColor: '#92d050', padding: '15px', textAlign: 'center', fontWeight: '900', borderBottom: '3px solid #76b041' }}>
         MERGE PDF - UNIQ DESIGNS
       </header>
@@ -89,19 +124,24 @@ export default function MergePDF() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={files.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            {files.map(f => <SortableItem key={f.id} file={f} onRemove={(id: any) => setFiles(files.filter(x => x.id !== id))} />)}
+            {files.map(f => (
+              <SortableItem key={f.id} file={f} onRemove={(id: any) => setFiles(files.filter(x => x.id !== id))} />
+            ))}
           </SortableContext>
         </DndContext>
 
         {files.length > 0 && (
-          <>
-            <div style={{ backgroundColor: '#ffff00', padding: '10px', textAlign: 'center', fontWeight: 'bold', marginBottom: '10px', borderRadius: '5px' }}>
+          <div style={{ marginTop: '20px' }}>
+            <div style={{ backgroundColor: '#ffff00', padding: '10px', textAlign: 'center', fontWeight: 'bold', marginBottom: '10px', borderRadius: '5px', border: '1px solid #e6e600' }}>
               Files to Merge: {files.length}
             </div>
-            <button onClick={mergePDFs} disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#0070c0', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>
+            <button onClick={mergePDFs} disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#0070c0', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,112,192,0.3)' }}>
               {loading ? "PROCESSING..." : "DOWNLOAD MERGED PDF"}
             </button>
-          </>
+            <p style={{ textAlign: 'center', fontSize: '11px', color: '#888', marginTop: '10px' }}>
+              * On mobile, long-press to drag and reorder
+            </p>
+          </div>
         )}
       </div>
     </div>
