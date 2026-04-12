@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { 
   DndContext, 
@@ -7,7 +7,6 @@ import {
   MouseSensor, 
   useSensor, 
   useSensors,
-  PointerSensor
 } from '@dnd-kit/core';
 import { 
   arrayMove, 
@@ -45,8 +44,20 @@ const SortableItem = ({ file, onRemove }: any) => {
 
   return (
     <div ref={setNodeRef} style={style}>
-      {/* Separate Drag Handle to ensure Delete button works perfectly */}
-      <div {...attributes} {...listeners} style={{ marginRight: '15px', color: '#0070c0', fontSize: '18px', cursor: 'grab' }}>
+      {/* DRAG HANDLE: listeners and attributes are attached here for reliability */}
+      <div 
+        {...attributes} 
+        {...listeners} 
+        style={{ 
+          marginRight: '15px', 
+          color: '#0070c0', 
+          fontSize: '20px', 
+          cursor: 'grab', 
+          padding: '5px',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
         ☰
       </div>
       
@@ -87,10 +98,14 @@ export default function MergePDF() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Optimized Sensors
+  // CONFIGURED SENSORS: Mouse for Laptop, Touch for Mobile
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 10 }, // Prevents accidental drags on click
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 }, // Long-press for mobile
+    })
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,7 +116,7 @@ export default function MergePDF() {
       name: file.name
     }));
     setFiles(prev => [...prev, ...newFiles]);
-    e.target.value = ''; // Reset input to allow same file selection
+    e.target.value = ''; 
   };
 
   const handleDragEnd = (event: any) => {
@@ -115,7 +130,6 @@ export default function MergePDF() {
     }
   };
 
-  // Reusable Merging Logic (Memory Optimized)
   const processPDF = async () => {
     const mergedPdf = await PDFDocument.create();
     for (const f of files) {
@@ -138,9 +152,9 @@ export default function MergePDF() {
       link.href = url;
       link.download = file.name;
       link.click();
-      URL.revokeObjectURL(url); // Clean up memory
+      URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Error: File might be too large or corrupted.");
+      alert("Error generating PDF.");
     } finally {
       setLoading(false);
     }
@@ -167,7 +181,7 @@ export default function MergePDF() {
   return (
     <div style={{ maxWidth: '450px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f9f9f9', fontFamily: 'sans-serif' }}>
       <header style={{ backgroundColor: '#92d050', padding: '18px', textAlign: 'center', fontWeight: '900', fontSize: '18px', borderBottom: '4px solid #76b041', color: '#333' }}>
-        UNIQ DESIGNS - PDF PRO
+        MERGE PDF - UNIQ DESIGNS
       </header>
       
       <div style={{ padding: '15px' }}>
@@ -178,7 +192,7 @@ export default function MergePDF() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={files.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '5px' }}>
+            <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '5px' }}>
               {files.map(f => (
                 <SortableItem key={f.id} file={f} onRemove={(id: string) => setFiles(prev => prev.filter(x => x.id !== id))} />
               ))}
@@ -192,7 +206,7 @@ export default function MergePDF() {
               TOTAL FILES: {files.length}
             </div>
             
-            <button onClick={onDownload} disabled={loading} style={{ width: '100%', padding: '16px', backgroundColor: '#0070c0', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', transition: '0.2s' }}>
+            <button onClick={onDownload} disabled={loading} style={{ width: '100%', padding: '16px', backgroundColor: '#0070c0', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}>
               {loading ? "MERGING..." : "DOWNLOAD MERGED PDF"}
             </button>
 
@@ -200,7 +214,7 @@ export default function MergePDF() {
               {loading ? "PREPARING..." : "SHARE TO WHATSAPP"}
             </button>
             
-            <button onClick={() => setFiles([])} style={{ background: 'none', border: 'none', color: '#888', textDecoration: 'underline', cursor: 'pointer', fontSize: '12px' }}>
+            <button onClick={() => setFiles([])} style={{ background: 'none', border: 'none', color: '#888', textDecoration: 'underline', cursor: 'pointer', fontSize: '12px', marginTop: '5px' }}>
               Clear All Files
             </button>
           </div>
