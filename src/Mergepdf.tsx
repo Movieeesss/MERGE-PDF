@@ -32,7 +32,7 @@ const SortableItem = ({ file, onRemove }: any) => {
     alignItems: 'center',
     boxShadow: isDragging ? '0 8px 15px rgba(0,0,0,0.2)' : '0 2px 5px rgba(0,0,0,0.1)',
     zIndex: isDragging ? 10 : 1,
-    touchAction: 'none' // Critical for mobile drag
+    touchAction: 'none' 
   };
 
   return (
@@ -42,7 +42,7 @@ const SortableItem = ({ file, onRemove }: any) => {
         {file.name}
       </div>
       <button 
-        onPointerDown={(e) => e.stopPropagation()} // Prevents drag when trying to delete
+        onPointerDown={(e) => e.stopPropagation()} 
         onClick={() => onRemove(file.id)} 
         style={{ background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}
       >
@@ -52,20 +52,14 @@ const SortableItem = ({ file, onRemove }: any) => {
   );
 };
 
-// --- Main App ---
 export default function MergePDF() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // CONFIGURE SENSORS FOR MOBILE LONG PRESS
   const sensors = useSensors(
     useSensor(MouseSensor),
     useSensor(TouchSensor, {
-      // Press and hold for 250ms to start dragging on mobile
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
+      activationConstraint: { delay: 250, tolerance: 5 },
     })
   );
 
@@ -89,7 +83,7 @@ export default function MergePDF() {
     }
   };
 
-  const mergePDFs = async () => {
+  const mergeAndSharePDF = async () => {
     if (files.length < 2) return alert("Select at least 2 files!");
     setLoading(true);
     try {
@@ -100,13 +94,28 @@ export default function MergePDF() {
         const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
         pages.forEach(p => mergedPdf.addPage(p));
       }
+      
       const pdfBytes = await mergedPdf.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `Merged_UniqDesigns_${Date.now()}.pdf`;
-      link.click();
-    } catch (err) { alert("Error merging files"); }
+      const fileName = `Merged_UniqDesigns_${Date.now()}.pdf`;
+      const file = new File([pdfBytes], fileName, { type: 'application/pdf' });
+
+      // Check if the device supports sharing files (WhatsApp, etc.)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Merged PDF',
+          text: 'Here is the merged PDF from Uniq Designs',
+        });
+      } else {
+        // Fallback: Just download if sharing is not supported
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file);
+        link.download = fileName;
+        link.click();
+      }
+    } catch (err) { 
+      alert("Error processing PDF. Try a different browser."); 
+    }
     setLoading(false);
   };
 
@@ -135,11 +144,32 @@ export default function MergePDF() {
             <div style={{ backgroundColor: '#ffff00', padding: '10px', textAlign: 'center', fontWeight: 'bold', marginBottom: '10px', borderRadius: '5px', border: '1px solid #e6e600' }}>
               Files to Merge: {files.length}
             </div>
-            <button onClick={mergePDFs} disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#0070c0', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,112,192,0.3)' }}>
-              {loading ? "PROCESSING..." : "DOWNLOAD MERGED PDF"}
+            
+            <button 
+              onClick={mergeAndSharePDF} 
+              disabled={loading} 
+              style={{ 
+                width: '100%', 
+                padding: '15px', 
+                backgroundColor: '#25D366', // WhatsApp Green Color
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '10px', 
+                fontWeight: '900', 
+                fontSize: '15px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                boxShadow: '0 4px 10px rgba(37,211,102,0.3)'
+              }}
+            >
+              {loading ? "PROCESSING..." : "MERGE & SEND TO WHATSAPP"}
             </button>
-            <p style={{ textAlign: 'center', fontSize: '11px', color: '#888', marginTop: '10px' }}>
-              * On mobile, long-press to drag and reorder
+            
+            <p style={{ textAlign: 'center', fontSize: '11px', color: '#888', marginTop: '12px' }}>
+              Long-press to reorder. Files will open in Share menu.
             </p>
           </div>
         )}
