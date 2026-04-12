@@ -83,38 +83,53 @@ export default function MergePDF() {
     }
   };
 
-  const mergeAndSharePDF = async () => {
+  // Internal Helper to Merge PDFs
+  const getMergedFile = async () => {
+    const mergedPdf = await PDFDocument.create();
+    for (const f of files) {
+      const bytes = await f.file.arrayBuffer();
+      const pdf = await PDFDocument.load(bytes);
+      const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+      pages.forEach(p => mergedPdf.addPage(p));
+    }
+    const pdfBytes = await mergedPdf.save();
+    const fileName = `Merged_UniqDesigns_${Date.now()}.pdf`;
+    return new File([pdfBytes], fileName, { type: 'application/pdf' });
+  };
+
+  // ACTION 1: Direct Download
+  const handleDownload = async () => {
     if (files.length < 2) return alert("Select at least 2 files!");
     setLoading(true);
     try {
-      const mergedPdf = await PDFDocument.create();
-      for (const f of files) {
-        const bytes = await f.file.arrayBuffer();
-        const pdf = await PDFDocument.load(bytes);
-        const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-        pages.forEach(p => mergedPdf.addPage(p));
-      }
-      
-      const pdfBytes = await mergedPdf.save();
-      const fileName = `Merged_UniqDesigns_${Date.now()}.pdf`;
-      const file = new File([pdfBytes], fileName, { type: 'application/pdf' });
+      const file = await getMergedFile();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(file);
+      link.download = file.name;
+      link.click();
+    } catch (err) {
+      alert("Error generating PDF.");
+    }
+    setLoading(false);
+  };
 
-      // Check if the device supports sharing files (WhatsApp, etc.)
+  // ACTION 2: Share to WhatsApp/System
+  const handleShare = async () => {
+    if (files.length < 2) return alert("Select at least 2 files!");
+    setLoading(true);
+    try {
+      const file = await getMergedFile();
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Merged PDF',
-          text: 'Here is the merged PDF from Uniq Designs',
+          title: 'Uniq Designs PDF',
+          text: 'Shared from Uniq Designs PDF Tool',
         });
       } else {
-        // Fallback: Just download if sharing is not supported
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(file);
-        link.download = fileName;
-        link.click();
+        alert("Sharing not supported on this browser. Try Download instead.");
       }
-    } catch (err) { 
-      alert("Error processing PDF. Try a different browser."); 
+    } catch (err) {
+      console.error(err);
     }
     setLoading(false);
   };
@@ -140,36 +155,55 @@ export default function MergePDF() {
         </DndContext>
 
         {files.length > 0 && (
-          <div style={{ marginTop: '20px' }}>
-            <div style={{ backgroundColor: '#ffff00', padding: '10px', textAlign: 'center', fontWeight: 'bold', marginBottom: '10px', borderRadius: '5px', border: '1px solid #e6e600' }}>
+          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ backgroundColor: '#ffff00', padding: '10px', textAlign: 'center', fontWeight: 'bold', borderRadius: '5px', border: '1px solid #e6e600' }}>
               Files to Merge: {files.length}
             </div>
             
+            {/* DOWNLOAD BUTTON (BLUE) */}
             <button 
-              onClick={mergeAndSharePDF} 
+              onClick={handleDownload} 
               disabled={loading} 
               style={{ 
                 width: '100%', 
-                padding: '15px', 
-                backgroundColor: '#25D366', // WhatsApp Green Color
+                padding: '14px', 
+                backgroundColor: '#0070c0', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '10px', 
                 fontWeight: '900', 
-                fontSize: '15px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 10px rgba(0,112,192,0.3)'
+              }}
+            >
+              {loading ? "GENERATING..." : "DOWNLOAD MERGED PDF"}
+            </button>
+
+            {/* WHATSAPP/SHARE BUTTON (GREEN) */}
+            <button 
+              onClick={handleShare} 
+              disabled={loading} 
+              style={{ 
+                width: '100%', 
+                padding: '14px', 
+                backgroundColor: '#25D366', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '10px', 
+                fontWeight: '900', 
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '10px',
+                gap: '8px',
                 boxShadow: '0 4px 10px rgba(37,211,102,0.3)'
               }}
             >
-              {loading ? "PROCESSING..." : "MERGE & SEND TO WHATSAPP"}
+              {loading ? "PREPARING..." : "SEND VIA WHATSAPP"}
             </button>
             
-            <p style={{ textAlign: 'center', fontSize: '11px', color: '#888', marginTop: '12px' }}>
-              Long-press to reorder. Files will open in Share menu.
+            <p style={{ textAlign: 'center', fontSize: '11px', color: '#888', marginTop: '5px' }}>
+              Hold & drag to reorder files.
             </p>
           </div>
         )}
