@@ -39,12 +39,12 @@ const SortableItem = ({ file, onRemove }: any) => {
     alignItems: 'center',
     boxShadow: isDragging ? '0 8px 15px rgba(0,0,0,0.2)' : '0 2px 5px rgba(0,0,0,0.1)',
     zIndex: isDragging ? 10 : 1,
-    touchAction: 'none' 
+    // Removed touchAction: none from here to allow page scrolling
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      {/* DRAG HANDLE: listeners and attributes are attached here for reliability */}
+      {/* DRAG HANDLE: Only swiping here triggers drag. Swiping elsewhere scrolls the page. */}
       <div 
         {...attributes} 
         {...listeners} 
@@ -53,9 +53,10 @@ const SortableItem = ({ file, onRemove }: any) => {
           color: '#0070c0', 
           fontSize: '20px', 
           cursor: 'grab', 
-          padding: '5px',
+          padding: '10px 5px', // Larger touch area for the handle
           display: 'flex',
-          alignItems: 'center'
+          alignItems: 'center',
+          touchAction: 'none' // Only prevent scrolling on the handle itself
         }}
       >
         ☰
@@ -98,13 +99,12 @@ export default function MergePDF() {
   const [files, setFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // CONFIGURED SENSORS: Mouse for Laptop, Touch for Mobile
   const sensors = useSensors(
     useSensor(MouseSensor, {
-      activationConstraint: { distance: 10 }, // Prevents accidental drags on click
+      activationConstraint: { distance: 10 }, 
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 }, // Long-press for mobile
+      activationConstraint: { delay: 250, tolerance: 5 }, 
     })
   );
 
@@ -139,7 +139,7 @@ export default function MergePDF() {
       pages.forEach(p => mergedPdf.addPage(p));
     }
     const pdfBytes = await mergedPdf.save();
-    return new File([pdfBytes], `UniqDesigns_Merged_${Date.now()}.pdf`, { type: 'application/pdf' });
+    return new File([pdfBytes], `Merged_Report_${Date.now()}.pdf`, { type: 'application/pdf' });
   };
 
   const onDownload = async () => {
@@ -166,7 +166,7 @@ export default function MergePDF() {
     try {
       const file = await processPDF();
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Merged PDF', text: 'From Uniq Designs' });
+        await navigator.share({ files: [file], title: 'Merged PDF', text: 'Structural Report' });
       } else {
         alert("Sharing not supported. Using Download instead.");
         onDownload();
@@ -180,8 +180,9 @@ export default function MergePDF() {
 
   return (
     <div style={{ maxWidth: '450px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f9f9f9', fontFamily: 'sans-serif' }}>
+      {/* RENAME: "UNIQ DESIGNS" REMOVED AS REQUESTED */}
       <header style={{ backgroundColor: '#92d050', padding: '18px', textAlign: 'center', fontWeight: '900', fontSize: '18px', borderBottom: '4px solid #76b041', color: '#333' }}>
-        MERGE PDF - UNIQ DESIGNS
+        MERGE PDF
       </header>
       
       <div style={{ padding: '15px' }}>
@@ -192,7 +193,8 @@ export default function MergePDF() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={files.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '5px' }}>
+            {/* The list container no longer has a max-height to ensure smooth page-level scrolling */}
+            <div style={{ paddingBottom: '10px' }}>
               {files.map(f => (
                 <SortableItem key={f.id} file={f} onRemove={(id: string) => setFiles(prev => prev.filter(x => x.id !== id))} />
               ))}
