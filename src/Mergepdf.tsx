@@ -16,8 +16,21 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+interface FileItem {
+  id: string;
+  file: File;
+  name: string;
+}
+
+// Natural sort function: name01, name02, RB2 nu correct-ah Ascending order-la sort pannum
+const sortAscending = (list: FileItem[]): FileItem[] => {
+  return [...list].sort((a, b) => 
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+  );
+};
+
 // --- Sortable Item Component ---
-const SortableItem = ({ file, onRemove }: any) => {
+const SortableItem = ({ file, onRemove }: { file: FileItem; onRemove: (id: string) => void }) => {
   const { 
     attributes, 
     listeners, 
@@ -39,12 +52,10 @@ const SortableItem = ({ file, onRemove }: any) => {
     alignItems: 'center',
     boxShadow: isDragging ? '0 8px 15px rgba(0,0,0,0.2)' : '0 2px 5px rgba(0,0,0,0.1)',
     zIndex: isDragging ? 10 : 1,
-    // Removed touchAction: none from here to allow page scrolling
   };
 
   return (
     <div ref={setNodeRef} style={style}>
-      {/* DRAG HANDLE: Only swiping here triggers drag. Swiping elsewhere scrolls the page. */}
       <div 
         {...attributes} 
         {...listeners} 
@@ -53,10 +64,10 @@ const SortableItem = ({ file, onRemove }: any) => {
           color: '#0070c0', 
           fontSize: '20px', 
           cursor: 'grab', 
-          padding: '10px 5px', // Larger touch area for the handle
+          padding: '10px 5px',
           display: 'flex',
           alignItems: 'center',
-          touchAction: 'none' // Only prevent scrolling on the handle itself
+          touchAction: 'none'
         }}
       >
         ☰
@@ -80,13 +91,13 @@ const SortableItem = ({ file, onRemove }: any) => {
           borderRadius: '50%', 
           width: '28px', 
           height: '28px', 
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          marginLeft: '10px'
+          cursor: 'pointer', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          fontSize: '16px', 
+          fontWeight: 'bold', 
+          marginLeft: '10px' 
         }}
       >
         ×
@@ -96,7 +107,7 @@ const SortableItem = ({ file, onRemove }: any) => {
 };
 
 export default function MergePDF() {
-  const [files, setFiles] = useState<any[]>([]);
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const sensors = useSensors(
@@ -109,13 +120,16 @@ export default function MergePDF() {
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const newFiles = Array.from(e.target.files).map((file) => ({
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const newFiles: FileItem[] = Array.from(e.target.files).map((file) => ({
       id: `${file.name}-${Date.now()}-${Math.random()}`,
       file,
       name: file.name
     }));
-    setFiles(prev => [...prev, ...newFiles]);
+
+    // Files select aana odane automatic-ah Ascending order-la sort aagum
+    setFiles(prev => sortAscending([...prev, ...newFiles]));
     e.target.value = ''; 
   };
 
@@ -180,7 +194,6 @@ export default function MergePDF() {
 
   return (
     <div style={{ maxWidth: '450px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f9f9f9', fontFamily: 'sans-serif' }}>
-      {/* RENAME: "UNIQ DESIGNS" REMOVED AS REQUESTED */}
       <header style={{ backgroundColor: '#92d050', padding: '18px', textAlign: 'center', fontWeight: '900', fontSize: '18px', borderBottom: '4px solid #76b041', color: '#333' }}>
         MERGE PDF
       </header>
@@ -193,7 +206,6 @@ export default function MergePDF() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={files.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            {/* The list container no longer has a max-height to ensure smooth page-level scrolling */}
             <div style={{ paddingBottom: '10px' }}>
               {files.map(f => (
                 <SortableItem key={f.id} file={f} onRemove={(id: string) => setFiles(prev => prev.filter(x => x.id !== id))} />
